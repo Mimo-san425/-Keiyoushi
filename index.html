@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>けいようし かるた</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#d8b26e;
+  text-align:center;
+  touch-action:manipulation;
+}
+
+header{
+  background:#7a4a20;
+  color:white;
+  padding:10px;
+  font-size:24px;
+  font-weight:bold;
+}
+
+.question-area{
+  background:#fff8dc;
+  margin:8px auto;
+  padding:8px;
+  width:94%;
+  max-width:700px;
+  border-radius:15px;
+}
+
+.question-label{
+  font-size:18px;
+}
+
+.question-word{
+  font-size:42px;
+  font-weight:bold;
+  color:#d35400;
+  margin:4px;
+}
+
+button{
+  font-size:18px;
+  margin:4px;
+  padding:8px 18px;
+  border:0;
+  border-radius:12px;
+  background:#3498db;
+  color:white;
+  cursor:pointer;
+}
+
+button:active{
+  transform:scale(.96);
+}
+
+.message{
+  font-size:26px;
+  font-weight:bold;
+  color:#c0392b;
+  min-height:32px;
+  margin:4px;
+}
+
+.message button{
+  display:block;
+  margin:12px auto 4px;
+  padding:12px 28px;
+  font-size:24px;
+  font-weight:bold;
+  background:#ff9800;
+}
+
+.score{
+  font-size:18px;
+  margin:4px;
+}
+
+.karuta-board{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  gap:12px;
+  padding:12px;
+  max-width:1000px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  border:4px solid #333;
+  border-radius:16px;
+  min-height:165px;
+  padding:5px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  box-shadow:3px 4px 8px #0005;
+  user-select:none;
+  cursor:pointer;
+}
+
+.card:active{
+  transform:scale(.96);
+}
+
+.card img{
+  width:145px;
+  height:145px;
+  object-fit:contain;
+  pointer-events:none;
+}
+
+.correct{
+  background:#b8f5b8!important;
+  border-color:#27ae60;
+}
+
+.wrong{
+  background:#ffb3b3!important;
+  border-color:#e74c3c;
+}
+
+.hidden{
+  visibility:hidden;
+}
+
+.no-image{
+  font-size:13px;
+  color:#999;
+  line-height:1.4;
+}
+
+@media(max-width:700px){
+  .karuta-board{
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    padding:8px;
+  }
+
+  .card{
+    min-height:125px;
+    padding:3px;
+  }
+
+  .card img{
+    width:110px;
+    height:110px;
+  }
+
+  .question-word{
+    font-size:36px;
+  }
+}
+
+@media(max-width:420px){
+  .karuta-board{
+    gap:6px;
+    padding:6px;
+  }
+
+  .card{
+    min-height:105px;
+  }
+
+  .card img{
+    width:95px;
+    height:95px;
+  }
+
+  .question-word{
+    font-size:32px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>けいようし かるた</header>
+
+<div class="question-area">
+  <div class="question-label">
+    よまれた ことばの えを タッチしよう
+  </div>
+
+  <div id="question" class="question-word">
+    スタート
+  </div>
+
+  <button onclick="startGame()">スタート</button>
+  <button onclick="resetGame()">リセット</button>
+
+  <div id="message" class="message"></div>
+  <div id="score" class="score">0 / 12</div>
+</div>
+
+<div id="board" class="karuta-board"></div>
+
+<script>
+const data=[
+  ["あかるい","akarui"],
+  ["あさい","asai"],
+  ["あつい","atsui"],
+  ["あたらしい","atarashii"],
+  ["いそがしい","isogashii"],
+  ["うれしい","ureshii"],
+  ["おいしい","oishii"],
+  ["おおきい","ookii"],
+  ["おそい","osoi"],
+  ["おもい","omoi"],
+  ["おもしろい","omoshiroi"],
+  ["かっこいい","kakkoii"],
+  ["かたい","katai"],
+  ["かなしい","kanashii"],
+  ["からい","karai"],
+  ["かるい","karui"],
+  ["かわいい","kawaii"],
+  ["くやしい","kuyashii"],
+  ["くらい","kurai"],
+  ["こわい","kowai"],
+  ["さむい","samui"],
+  ["すっぱい","suppai"],
+  ["せまい","semai"],
+  ["たかい","takai"],
+  ["たのしい","tanoshii"],
+  ["ちいさい","chiisai"],
+  ["つよい","tsuyoi"],
+  ["はやい","hayai"],
+  ["ながい","nagai"],
+  ["なつかしい","natsukashii"],
+  ["ねむい","nemui"],
+  ["ひくい","hikui"],
+  ["ひろい","hiroi"],
+  ["ふかい","fukai"],
+  ["ふとい","futoi"],
+  ["ふるい","furui"],
+  ["ほそい","hosoi"],
+  ["まずい","mazui"],
+  ["みじかい","mijikai"],
+  ["めずらしい","mezurashii"],
+  ["やわらかい","yawarakai"]
+];
+
+const COUNT=12;
+
+let cards=[];
+let remain=[];
+let current="";
+let points=0;
+let playing=false;
+let locked=false;
+
+const $=id=>document.getElementById(id);
+
+function shuffle(array){
+  const copy=[...array];
+
+  for(let i=copy.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [copy[i],copy[j]]=[copy[j],copy[i]];
+  }
+
+  return copy;
+}
+
+function makeCards(){
+  cards=shuffle(data).slice(0,COUNT);
+}
+
+function makeBoard(){
+  $("board").innerHTML="";
+
+  cards.forEach(([word,file])=>{
+    const card=document.createElement("div");
+    card.className="card";
+
+    const img=document.createElement("img");
+    img.src=`images/${file}.png`;
+    img.alt=word;
+
+    img.onerror=()=>{
+      card.innerHTML=`
+        <div class="no-image">
+          画像なし<br>
+          images/${file}.png
+        </div>
+      `;
+    };
+
+    card.appendChild(img);
+    card.onclick=()=>answer(card,word);
+
+    $("board").appendChild(card);
+  });
+}
+
+  
+function startGame(){
+  remain=shuffle(cards.map(c=>c[0]));
+  points=0;
+  playing=true;
+  locked=false;
+  $("message").textContent="";
+  updateScore();
+  next();
+}
+
+function next(){
+  locked=false;
+
+  if(remain.length===0){
+    playing=false;
+    current="";
+
+    $("question").textContent="おわり";
+
+    $("message").innerHTML=`
+      🎉 おめでとう！<br><br>
+      <button onclick="playAgain()">
+        もう一回 ちょうせんする
+      </button>
+    `;
+    return;
+  }
+
+  current=remain[0];
+  $("question").textContent=current;
+  $("message").textContent="";
+}
+
+function answer(card,word){
+
+  if(!playing){
+    $("message").textContent="スタートを おしてね";
+    return;
+  }
+
+  if(locked || card.classList.contains("hidden")) return;
+
+  if(word===current){
+
+    locked=true;
+
+    card.classList.add("correct");
+    $("message").textContent="せいかい！";
+
+    remain.shift();
+    points++;
+    updateScore();
+
+    setTimeout(()=>{
+      card.classList.add("hidden");
+    },300);
+
+    setTimeout(next,600);
+
+  }else{
+
+    card.classList.add("wrong");
+    $("message").textContent="もういちど";
+
+    setTimeout(()=>{
+      card.classList.remove("wrong");
+    },300);
+
+  }
+
+}
+
+function updateScore(){
+  $("score").textContent=`${points} / ${cards.length}`;
+}
+
+function resetGame(){
+
+  playing=false;
+  locked=false;
+  current="";
+  remain=[];
+  points=0;
+
+  $("question").textContent="スタート";
+  $("message").textContent="";
+
+  makeCards();
+  makeBoard();
+  updateScore();
+
+}
+
+function playAgain(){
+  resetGame();
+  startGame();
+}
+
+resetGame();
+
+</script>
+
+</body>
+</html>
